@@ -109,8 +109,6 @@ if question:
         st.error("请先在左侧输入 API Key！")
         st.stop()
         # 初始化云端大脑记忆卡（既然换了云端，它就永远存在了）
-if "vectorstore" not in st.session_state:
-    st.session_state.vectorstore = vectorstore
     if not st.session_state.vectorstore:
         st.error("请先上传PDF并构建知识库！")
         st.stop()
