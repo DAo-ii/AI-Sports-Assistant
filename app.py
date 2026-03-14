@@ -40,9 +40,16 @@ with st.sidebar:
                 os.remove("temp.pdf")
 
 # === 4. 连接云端大脑与大模型 ===
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vectorstore = PineconeVectorStore(index_name="sport", embedding=embeddings)
-retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+# === 进阶架构：全局共享云端大脑，防止内存撑爆 ===
+@st.cache_resource
+def get_retriever():
+    # 这部分只会在第一个人打开网页时运行一次，后面的人直接白嫖！
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vectorstore = PineconeVectorStore(index_name="sport", embedding=embeddings)
+    return vectorstore.as_retriever(search_kwargs={"k": 4})
+
+# 召唤出带缓存的检索器
+retriever = get_retriever()
 
 llm = ChatOpenAI(
     model="nvidia/nemotron-3-super-120b-a12b:free", # 用了免费模型测试
