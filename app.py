@@ -71,7 +71,7 @@ question = st.chat_input("向教练提问...")
 
 # 3. 核心大闸门：只要你发了问题，它才开始运转
 if question:
-    # 先把你的问题打印到屏幕上，并记入记忆卡
+    # 先把问题打印到屏幕上
     with st.chat_message("user"):
         st.markdown(question)
     st.session_state.messages.append({"role": "user", "content": question})
@@ -79,22 +79,22 @@ if question:
     # AI 教练开始表演
     with st.chat_message("assistant"):
         with st.spinner("教练正在翻阅云端战术板..."):
-            # A. 从 Pinecone 云端大脑提取和你问题相关的体育资料
+            # A. 提取资料
             docs = retriever.invoke(question)
             context = "\n".join([doc.page_content for doc in docs])
             
-            # B. 组装提示词（让大模型带上资料来回答）
+            # B. 组装提示词
             prompt = f"""你是一个专业的体育教练。请根据以下参考资料回答学员的问题。
             参考资料：\n{context}\n\n
             学员问题：{question}"""
             
-            # C. 呼叫大模型去思考
+            # C. 呼叫大模型
             response = llm.invoke(prompt)
             
-            # D. 最关键的一步！让它把肚子里的答案打印到网页上！
+            # D. 打印答案
             st.markdown(response.content)
             
-    # E. 把教练的回答存入记忆卡，方便进行多轮对话
+    # E. 存入记忆卡
     st.session_state.messages.append({"role": "assistant", "content": response.content})
             
             # ... 把你原本后面的回答逻辑贴在这里（记得也要保持缩进） ...
