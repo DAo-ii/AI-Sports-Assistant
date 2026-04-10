@@ -13,7 +13,7 @@ api_key = st.secrets["OPENROUTER_API_KEY"]
 base_url = "https://openrouter.ai/api/v1"
 
 # === 2. 页面 UI 初始化 ===
-st.title("🏀 专属 AI 体育教练 (云端记忆版)")
+st.title("专属 AI 体育教练 ")
 st.divider()  # 你看，这行现在紧贴左边了，绝对不会报错！
 
 # === 3. 侧边栏：上传与投喂 ===
