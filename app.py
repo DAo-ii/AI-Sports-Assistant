@@ -146,7 +146,7 @@ if question:
 
     # 5. 调用云端大模型 API
     llm = ChatOpenAI(
-        model="nvidia/nemotron-3-super-120b-a12b:free", # 如果用其他厂商，这里改成对应的模型名字
+        model="google/gemma-4-31b-it:free", # 如果用其他厂商，这里改成对应的模型名字
         api_key=api_key,
         base_url=base_url,
         temperature=0.3
