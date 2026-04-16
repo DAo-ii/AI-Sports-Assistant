@@ -52,7 +52,7 @@ def get_retriever():
 retriever = get_retriever()
 
 llm = ChatOpenAI(
-    model="nvidia/nemotron-3-super-120b-a12b:free", # 用了免费模型测试
+    model="google/gemma-4-31b-it:free", # 用了免费模型测试
     api_key=api_key,
     base_url=base_url,
     temperature=0.3
