@@ -150,10 +150,6 @@ if question:
         api_key=api_key,
         base_url=base_url,
         temperature=0.3
-        default_headers={
-        "HTTP-Referer": "https://ai-sports-assistant.streamlit.app/", # 你的部署网址
-        "X-Title": "AI Sports Assistant" # 你的项目名
-    }
     )
 
     with st.chat_message("assistant"):
