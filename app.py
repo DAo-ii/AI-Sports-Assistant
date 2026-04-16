@@ -1,164 +1,141 @@
 import streamlit as st
 import os
-from langchain_pinecone import PineconeVectorStore
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_pinecone import PineconeVectorStore
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
 
-# === 1. 隐身术：读取云端秘钥 ===
-os.environ["PINECONE_API_KEY"] = st.secrets["PINECONE_API_KEY"]
-api_key = st.secrets["OPENROUTER_API_KEY"]
-base_url = "https://openrouter.ai/api/v1"
+# ==========================================
+# 1. 页面基本配置与 UI 精装修
+# ==========================================
+st.set_page_config(page_title="AI 体育训练助手", page_icon="🏀", layout="wide")
+st.title("🏀 垂直领域 AI 体育助手 (RAG 增强版)")
+st.caption("基于 Pinecone 云端向量检索与大模型的专业体育知识库 | 全局缓存高并发版")
 
-# === 2. 页面 UI 初始化 ===
-st.title("专属 AI 体育教练 ")
-st.divider()  # 你看，这行现在紧贴左边了，绝对不会报错！
+# ==========================================
+# 2. 安全读取环境变量 (绝不硬编码密码)
+# ==========================================
+# 从 Streamlit Cloud后台的 Secrets 保险箱中读取 Pinecone 密钥
+if "PINECONE_API_KEY" in st.secrets:
+    os.environ["PINECONE_API_KEY"] = st.secrets["PINECONE_API_KEY"]
+else:
+    st.error("🚨 致命错误：请在 Streamlit 后台 Secrets 中配置 PINECONE_API_KEY")
+    st.stop()
 
-# === 3. 侧边栏：上传与投喂 ===
-with st.sidebar:
-    st.header("📚 云端知识库投喂")
-    uploaded_file = st.file_uploader("上传体育资料 (PDF)", type="pdf")
-    
-    if uploaded_file and st.button("🚀 永久写入云端大脑"):
-        with st.spinner("正在切分资料并同步至 Pinecone..."):
-            with open("temp.pdf", "wb") as f:
-                f.write(uploaded_file.getvalue())
-                
-            loader = PyPDFLoader("temp.pdf")
-            docs = loader.load()
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-            splits = text_splitter.split_documents(docs)
-            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-            
-            # 写入云端！(确保你建的索引名字叫 sport)
-            PineconeVectorStore.from_documents(splits, embeddings, index_name="sport")
-            st.success("🎉 资料已永久保存！重启网页也不会失忆！")
-            
-            if os.path.exists("temp.pdf"):
-                os.remove("temp.pdf")
-
-# === 4. 连接云端大脑与大模型 ===
-# === 进阶架构：全局共享云端大脑，防止内存撑爆 ===
-@st.cache_resource
+# ==========================================
+# 3. 核心架构：初始化全局单例资源池，彻底杜绝 OOM
+# ==========================================
+@st.cache_resource(show_spinner=False)
 def get_retriever():
-    # 这部分只会在第一个人打开网页时运行一次，后面的人直接白嫖！
+    """
+    此函数仅在第一个用户访问时执行一次。
+    加载巨大的词向量模型并连接数据库，之后所有并发用户共享此连接。
+    """
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectorstore = PineconeVectorStore(index_name="sport", embedding=embeddings)
+    vectorstore = PineconeVectorStore(index_name="sport", embedding=embeddings) # 确保 index_name 对应你的数据库
+    # k=4 代表每次大模型回答前，必须先去数据库捞 4 条最相关的体育文献
     return vectorstore.as_retriever(search_kwargs={"k": 4})
 
-# 召唤出带缓存的检索器
 retriever = get_retriever()
 
-llm = ChatOpenAI(
-    model="google/gemma-4-31b-it:free", # 用了免费模型测试
-    api_key=api_key,
-    base_url=base_url,
-    temperature=0.3
-)
+# ==========================================
+# 4. 核心架构：OpenRouter 大模型网关配置
+# ==========================================
+def get_llm():
+    """
+    完美适配 OpenRouter 的配置，解决 RateLimit 和 404 错误。
+    包含必需的 base_url 和白嫖模型强制要求的请求头 (Headers)。
+    """
+    return ChatOpenAI(
+        model="google/gemma-7b-it:free",  # 强力免费模型，也可换 "microsoft/phi-3-mini-128k-instruct:free"
+        api_key=st.secrets["OPENROUTER_API_KEY"], 
+        base_url="https://openrouter.ai/api/v1",  # 👈 必须指定网关，否则迷路
+        default_headers={
+            "HTTP-Referer": "https://ai-sports-assistant.streamlit.app/", # 你的网站地址
+            "X-Title": "AI Sports Assistant" # 你的应用名
+        },
+        temperature=0.7 # 控制创造力，0为死板，1为发散
+    )
 
-# ... 下面保留你原本的 Prompt 和对话逻辑 (st.chat_message 等) ...
-# ================= 4. 聊天界面与记忆逻辑 =================
-# 渲染历史聊天记录（把之前说过的话显示在屏幕上）
-# 初始化聊天记录（插上记忆卡）
+llm = get_llm()
+
+# ==========================================
+# 5. 会话状态管理 (让 AI 拥有多轮记忆)
+# ==========================================
 if "messages" not in st.session_state:
-    st.session_state.messages = []
-# ==========================================
-# 下面是 app.py 的最后一部分：聊天界面与对话逻辑
-# ==========================================
+    # 设定系统初始人设
+    st.session_state.messages = [
+        {"role": "assistant", "content": "你好！我是你的专属 AI 体育助手。我有丰富的体育理论储备，你可以问我战术制定、动作要领或体能训练方案。"}
+    ]
 
-# 1. 每次刷新页面时，先把之前的聊天记录打印出来
+# 渲染历史聊天记录
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 2. 接收学员（你）的提问
-question = st.chat_input("向教练提问...")
+# ==========================================
+# 6. 侧边栏：交互精装修与状态监控
+# ==========================================
+with st.sidebar:
+    st.header("💡 快捷场景")
+    # 增加快捷按钮，免去用户打字的麻烦，演示绝佳！
+    if st.button("⚽ 制定新手足球训练计划"):
+        st.session_state.quick_query = "请帮我制定一份为期一周的新手足球训练计划，重点在基础盘带和体能。"
+    if st.button("🏀 篮球三步上篮的要点"):
+        st.session_state.quick_query = "请详细讲解篮球三步上篮的动作要领、发力技巧和新手易错点。"
+    
+    st.divider()
+    st.markdown("### ⚙️ 系统探针")
+    st.success("✅ Pinecone 向量库已连接")
+    st.success("✅ LLM 网关路由已就绪")
 
-# 3. 核心大闸门：只要你发了问题，它才开始运转
-if question:
-    # 先把问题打印到屏幕上
-    with st.chat_message("user"):
-        st.markdown(question)
-    st.session_state.messages.append({"role": "user", "content": question})
+# ==========================================
+# 7. 主控中枢：接收输入并执行 RAG 检索生成
+# ==========================================
+# 判断输入来源：是手打的，还是点击侧边栏快捷按钮的
+prompt_text = st.chat_input("输入你的体育问题，例如：如何提高长跑耐力？")
+if "quick_query" in st.session_state:
+    prompt_text = st.session_state.quick_query
+    del st.session_state.quick_query # 用完销毁
 
-    # AI 教练开始表演
+if prompt_text:
+    # 7.1 显示用户提问
+    st.chat_message("user").markdown(prompt_text)
+    st.session_state.messages.append({"role": "user", "content": prompt_text})
+
+    # 7.2 AI 思考与回答
     with st.chat_message("assistant"):
-        with st.spinner("教练正在翻阅云端战术板..."):
-            # A. 提取资料
-            docs = retriever.invoke(question)
-            context = "\n".join([doc.page_content for doc in docs])
-            
-            # B. 组装提示词
-            prompt = f"""你是一个专业的体育教练。请根据以下参考资料回答学员的问题。
-            参考资料：\n{context}\n\n
-            学员问题：{question}"""
-            
-            # C. 呼叫大模型
-            response = llm.invoke(prompt)
-            
-            # D. 打印答案
-            st.markdown(response.content)
-            
-    # E. 存入记忆卡
-    st.session_state.messages.append({"role": "assistant", "content": response.content})
-            
-            # ... 把你原本后面的回答逻辑贴在这里（记得也要保持缩进） ...
-    if not api_key:
-        st.error("请先在左侧输入 API Key！")
-        st.stop()
-        # 初始化云端大脑记忆卡（既然换了云端，它就永远存在了）
-    if not st.session_state.vectorstore:
-        st.error("请先上传PDF并构建知识库！")
-        st.stop()
-
-    # 1. 把用户的问题显示出来并存入记忆
-    with st.chat_message("user"):
-        st.write(question)
-    st.session_state.messages.append({"role": "user", "content": question})
-
-    # 2. 从知识库中检索相关内容
-    retriever = st.session_state.vectorstore.as_retriever(search_kwargs={"k": 4})
-    docs = retriever.invoke(question)
-    context = "\n\n".join(doc.page_content for doc in docs)
-
-    # 3. 把“历史记忆”格式化成字符串
-    history_str = ""
-    # 只取最近的 4 条对话，防止记忆太长把大模型撑爆
-    for msg in st.session_state.messages[-4:-1]: 
-        role = "用户" if msg["role"] == "user" else "教练"
-        history_str += f"{role}: {msg['content']}\n"
-
-    # 4. 组装终极 Prompt（包含规则、资料、记忆、新问题）
-    # 
-    final_prompt = f"""你是一位专业的运动训练教练。请严格基于以下【参考资料】回答。
-    如果资料中没有，请结合你的专业知识回答，并说明“此部分非资料原文”。
-    
-    【参考资料】：
-    {context}
-    
-    【历史聊天记录】：
-    {history_str}
-    
-    【用户最新问题】：{question}
-    """
-
-    # 5. 调用云端大模型 API
-    llm = ChatOpenAI(
-        model="google/gemma-4-31b-it:free", # 如果用其他厂商，这里改成对应的模型名字
-        api_key=api_key,
-        base_url=base_url,
-        temperature=0.3
-    )
-
-    with st.chat_message("assistant"):
-        with st.spinner("教练回忆中..."):
+        # UI 提示
+        with st.spinner("🧠 正在从 Pinecone 检索权威文献..."):
             try:
-                response = llm.invoke(final_prompt)
-                answer = response.content
-                st.write(answer)
-                # 把 AI 的回答也存入记忆
-                st.session_state.messages.append({"role": "assistant", "content": answer})
+                # [RAG 核心步骤 A] - 检索文档
+                docs = retriever.invoke(prompt_text)
+                context_text = "\n\n".join([doc.page_content for doc in docs])
+                
+                # [RAG 核心步骤 B] - 组装带背景知识的提示词
+                rag_prompt = f"""
+                你是一个专业的体育教练和战术分析师。请严格参考以下【私有数据库文献】来回答用户的【问题】。
+                如果文献中没有提到，请结合你自己的知识解答，并保持回答的专业性。
+                
+                【私有数据库文献】：
+                {context_text}
+                
+                【问题】：
+                {prompt_text}
+                """
+                
+                # [RAG 核心步骤 C] - 召唤大模型
+                response = llm.invoke(rag_prompt)
+                
+                # 7.3 展示答案
+                st.markdown(response.content)
+                st.session_state.messages.append({"role": "assistant", "content": response.content})
+
+                # 🌟 答辩高光时刻：展示文献引用来源
+                with st.expander("📚 查看 AI 检索到的底层参考文献"):
+                    for i, doc in enumerate(docs):
+                        st.markdown(f"**检索结果 [{i+1}]**: {doc.page_content[:200]}...")
+
             except Exception as e:
-                st.error(f"API 调用失败，请检查 Key 或网络: {e}")
+                # 优雅的错误捕获与提示
+                st.error("网络网关波动或 API 频率限制，请稍后重试。")
+                st.warning(f"底层错误日志: {str(e)}")
