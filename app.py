@@ -46,7 +46,7 @@ def get_llm():
     包含必需的 base_url 和白嫖模型强制要求的请求头 (Headers)。
     """
     return ChatOpenAI(
-        model="google/gemma-7b-it:free",  # 强力免费模型，也可换 "microsoft/phi-3-mini-128k-instruct:free"
+        model="google/gemma-4-31b-it:free",  # 强力免费模型，也可换 "microsoft/phi-3-mini-128k-instruct:free"
         api_key=st.secrets["OPENROUTER_API_KEY"], 
         base_url="https://openrouter.ai/api/v1",  # 👈 必须指定网关，否则迷路
         default_headers={
