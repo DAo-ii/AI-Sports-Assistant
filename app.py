@@ -8,7 +8,7 @@ from langchain_openai import ChatOpenAI
 # 1. 页面基本配置与 UI 精装修
 # ==========================================
 st.set_page_config(page_title="AI 体育训练助手", page_icon="🏀", layout="wide")
-st.title("🏀 垂直领域 AI 体育助手 (RAG 增强版)")
+st.title(" AI 体育助手")
 st.caption("基于 Pinecone 云端向量检索与大模型的专业体育知识库 | 全局缓存高并发版")
 
 # ==========================================
