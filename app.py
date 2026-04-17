@@ -32,8 +32,8 @@ def get_retriever():
     """
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = PineconeVectorStore(index_name="sport", embedding=embeddings) # 确保 index_name 对应你的数据库
-    # k=4 代表每次大模型回答前，必须先去数据库捞 4 条最相关的体育文献
-    return vectorstore.as_retriever(search_kwargs={"k": 4})
+    # k=4 代表每次大模型回答前，必须先去数据库捞 10 条最相关的体育文献
+    return vectorstore.as_retriever(search_kwargs={"k": 10})
 
 retriever = get_retriever()
 
@@ -112,15 +112,24 @@ if prompt_text:
                 context_text = "\n\n".join([doc.page_content for doc in docs])
                 
                 # [RAG 核心步骤 B] - 组装带背景知识的提示词
+                # [RAG 核心步骤 B] - 组装带企业级强约束的提示词 (Skills 配置)
                 rag_prompt = f"""
-                你是一个专业的体育教练和战术分析师。请严格参考以下【私有数据库文献】来回答用户的【问题】。
-                如果文献中没有提到，请结合你自己的知识解答，并保持回答的专业性。
+                你是本项目专属的「首席 AI 体育训练专家」。你拥有顶尖的体育运动理论基础、战术素养和体能训练经验。
                 
-                【私有数据库文献】：
+                【你的核心工作原则（最高指令）】：
+                1. 严谨求实：你必须**仅仅基于**我提供的 <参考文献> 来回答用户的问题。
+                2. 杜绝幻觉：如果用户的提问在 <参考文献> 中完全找不到相关信息，你必须直接回答：“根据当前知识库的文献，我无法回答该问题。” **绝对禁止**利用你的通用常识进行胡编乱造或猜测。
+                3. 专业视角：当文献中有相关信息时，请用专业体育教练的口吻进行提炼和总结。可以分点阐述，重点突出动作要领、发力细节或战术意图。
+                
+                <参考文献>
                 {context_text}
+                </参考文献>
                 
-                【问题】：
+                <用户问题>
                 {prompt_text}
+                </用户问题>
+                
+                请现在开始以专业专家的身份，基于 <参考文献> 回答 <用户问题>：
                 """
                 
                 # [RAG 核心步骤 C] - 召唤大模型
