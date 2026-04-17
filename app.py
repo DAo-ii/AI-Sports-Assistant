@@ -131,9 +131,7 @@ if prompt_text:
                 st.session_state.messages.append({"role": "assistant", "content": response.content})
 
                 # 🌟 答辩高光时刻：展示文献引用来源
-                with st.expander("📚 查看 AI 检索到的底层参考文献"):
-                    for i, doc in enumerate(docs):
-                        st.markdown(f"**检索结果 [{i+1}]**: {doc.page_content[:200]}...")
+               
 
             except Exception as e:
                 # 优雅的错误捕获与提示
