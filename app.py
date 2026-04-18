@@ -10,66 +10,102 @@ from langchain_openai import ChatOpenAI
 st.set_page_config(page_title="AI 体育训练助手", page_icon="🏀", layout="wide")
 
 # 注入全局自定义 CSS (现代极简主义 + 流畅仿生边缘)
+# 注入全局自定义 CSS (暗黑霓虹风 Dark Mode + Neon UI)
 st.markdown("""
 <style>
-    /* 隐藏 Streamlit 默认的顶部菜单和底部水印，打造纯净 SaaS 质感 */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* 全局字体与背景调优 */
+    /* 1. 极致暗黑背景 */
     .stApp {
-        background-color: #F8F9FA;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #0B0E14 !important;
     }
     
-    /* 侧边栏玻璃拟物化与柔和阴影 */
+    /* 隐藏所有默认的白色头部和底边 */
+    header {background-color: transparent !important; visibility: hidden;}
+    footer {visibility: hidden;}
+
+    /* 全局文字颜色调整为高级灰白 */
+    p, h1, h2, h3, h4, span, div {
+        color: #E2E8F0 !important;
+    }
+
+    /* 2. 聊天气泡深度定制 (卡片化) */
+    /* AI 回答气泡：深邃的藏青色面板 */
+    [data-testid="stChatMessage"]:nth-child(even) {
+        background-color: transparent !important;
+    }
+    [data-testid="stChatMessage"]:nth-child(even) .stMarkdown {
+        background-color: #151B23 !important;
+        border: 1px solid #2D3748 !important;
+        border-radius: 16px !important;
+        padding: 16px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    /* User 提问气泡：略微提亮的深灰色，区分层级 */
+    [data-testid="stChatMessage"]:nth-child(odd) {
+        background-color: transparent !important;
+    }
+    [data-testid="stChatMessage"]:nth-child(odd) .stMarkdown {
+        background-color: #1E2532 !important;
+        border-radius: 16px !important;
+        padding: 16px !important;
+    }
+
+    /* 3. 头像霓虹发光特效 (致敬你的参考图) */
+    /* 给 AI 的头像加上紫蓝色霓虹光晕 */
+    [data-testid="chatAvatarIcon-assistant"] {
+        background-color: #5D5FEF !important;
+        box-shadow: 0 0 15px rgba(93, 95, 239, 0.5) !important;
+        border: 2px solid #0B0E14 !important;
+    }
+
+    /* 4. 底部输入框：悬浮胶囊形态 */
+    [data-testid="stChatInput"] {
+        background-color: #151B23 !important;
+        border-radius: 30px !important;
+        border: 1px solid #3A4354 !important;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5) !important;
+    }
+    /* 输入框内的文字颜色 */
+    [data-testid="stChatInput"] textarea {
+        color: #FFFFFF !important;
+    }
+
+    /* 5. 侧边栏暗黑化 */
     [data-testid="stSidebar"] {
-        background-color: rgba(255, 255, 255, 0.9) !important;
-        box-shadow: 2px 0 15px rgba(0,0,0,0.03);
-        border-right: none;
+        background-color: #090B10 !important;
+        border-right: 1px solid #1E2532 !important;
     }
     
-    /* 按钮样式重构：流畅的胶囊形状与赛场橙悬浮特效 */
+    /* 按钮样式：暗黑质感 */
     .stButton>button {
-        width: 100%;
-        border-radius: 20px;
-        border: 1px solid #E2E8F0;
-        background-color: #FFFFFF;
-        color: #1E293B;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        background-color: #1E2532 !important;
+        color: #A0AEC0 !important;
+        border: 1px solid #2D3748 !important;
+        border-radius: 12px !important;
+        transition: all 0.3s;
     }
     .stButton>button:hover {
-        border-color: #FF6B00;
-        color: #FF6B00;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(255, 107, 0, 0.15);
+        border-color: #5D5FEF !important;
+        color: #5D5FEF !important;
+        box-shadow: 0 0 10px rgba(93, 95, 239, 0.3) !important;
     }
-    
-    /* 顶部标题区域美化 */
+
+    /* 顶部标题渐变紫蓝 */
     .hero-title {
         font-weight: 800;
-        font-size: 2.8rem;
-        background: linear-gradient(135deg, #FF6B00, #FFA500);
+        font-size: 2.5rem;
+        background: linear-gradient(135deg, #7F7FD5, #86A8E7, #91EAE4);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
-    }
-    .hero-subtitle {
-        color: #64748B;
-        font-size: 1.1rem;
-        margin-bottom: 2rem;
-        font-weight: 400;
+        text-align: center;
+        margin-top: -20px;
+        margin-bottom: 20px;
     }
 </style>
-""", unsafe_allow_html=True)
+""")
 
-# 使用自定义 HTML 渲染炫酷的头部
-st.markdown('<div class="hero-title">🏀 AI 专属体育教练</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-subtitle">基于 Pinecone 向量检索的高并发私有知识库引擎</div>', unsafe_allow_html=True)
-
+# 配合暗黑风格的顶部标题
+st.markdown('<div class="hero-title">AI 体育助手</div>', unsafe_allow_html=True)
 
 # ==========================================
 # 2. 安全读取环境变量 (绝不硬编码密码)
