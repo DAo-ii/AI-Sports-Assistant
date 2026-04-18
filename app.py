@@ -149,7 +149,7 @@ if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("assistant"):
-        with st.spinner("⚡ 正在穿梭向量维度..."):
+        with st.spinner("⚡ 正在翻阅战术板..."):
             try:
                 docs = retriever.invoke(prompt)
                 context = "\n\n".join([d.page_content for d in docs])
