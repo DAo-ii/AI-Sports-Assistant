@@ -103,7 +103,8 @@ def get_resources():
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = PineconeVectorStore(index_name="sport", embedding=embeddings) 
     llm = ChatOpenAI(
-        model="qwen/qwen-2.5-7b-instruct:free",
+        # 👇 就是这里！换回你之前一直稳定使用的 Nvidia 模型
+        model="nvidia/nemotron-nano-12b-v2-vl:free", 
         api_key=st.secrets["OPENROUTER_API_KEY"], 
         base_url="https://openrouter.ai/api/v1",
         default_headers={"HTTP-Referer": "http://localhost", "X-Title": "SportsApp"}
