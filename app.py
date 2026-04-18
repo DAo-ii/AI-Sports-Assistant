@@ -5,248 +5,160 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_openai import ChatOpenAI
 
 # ==========================================
-# 1. 页面基本配置与 暗黑霓虹极简 UI 注入
+# 1. 页面基本配置与 沉浸式暗黑交互 UI 注入
 # ==========================================
-st.set_page_config(page_title="AI 体育训练助手", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="AI 体育训练助手", page_icon="🏀", layout="wide")
 
-# 注入全局自定义 CSS (暗黑霓虹风 Dark Mode + Neon UI)
+# 注入高阶 CSS：彻底移除侧边栏样式，并强化主体交互
 st.markdown("""
 <style>
-    /* 1. 极致暗黑背景 */
-    .stApp {
-        background-color: #0B0E14 !important;
-    }
-    
-    /* 隐藏所有默认的白色头部和底边 */
+    /* 1. 核心布局：强制全屏并隐藏侧边栏与默认组件 */
+    [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="stSidebarNav"] { display: none !important; }
     #MainMenu {visibility: hidden;}
     header {background-color: transparent !important; visibility: hidden;}
     footer {visibility: hidden;}
-
-    /* 全局文字颜色调整为高级灰白 */
-    p, h1, h2, h3, h4, span, div, label {
-        color: #E2E8F0 !important;
-    }
-
-    /* 2. 聊天气泡深度定制 (卡片化) */
-    /* AI 回答气泡：深邃的藏青色面板 */
-    [data-testid="stChatMessage"]:nth-child(even) {
-        background-color: transparent !important;
-    }
-    [data-testid="stChatMessage"]:nth-child(even) .stMarkdown {
-        background-color: #151B23 !important;
-        border: 1px solid #2D3748 !important;
-        border-radius: 16px !important;
-        padding: 16px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
-    }
-
-    /* User 提问气泡：略微提亮的深灰色，带有一丝紫光 */
-    [data-testid="stChatMessage"]:nth-child(odd) {
-        background-color: transparent !important;
-    }
-    [data-testid="stChatMessage"]:nth-child(odd) .stMarkdown {
-        background: linear-gradient(135deg, #2D275A, #1E2532) !important;
-        border: 1px solid #3B316A !important;
-        border-radius: 16px !important;
-        padding: 16px !important;
-    }
-
-    /* 3. 头像霓虹发光特效 */
-    /* 给 AI 的头像加上紫蓝色霓虹光晕 */
-    [data-testid="chatAvatarIcon-assistant"] {
-        background-color: #5D5FEF !important;
-        box-shadow: 0 0 15px rgba(93, 95, 239, 0.5) !important;
-        border: 2px solid #0B0E14 !important;
-    }
-
-    /* 4. 底部输入框：悬浮胶囊形态 */
-    [data-testid="stChatInput"] {
-        background-color: #151B23 !important;
-        border-radius: 30px !important;
-        border: 1px solid #3A4354 !important;
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5) !important;
-    }
-    /* 输入框内的文字颜色 */
-    [data-testid="stChatInput"] textarea {
-        color: #FFFFFF !important;
-    }
-
-    /* 5. 侧边栏暗黑化 */
-    [data-testid="stSidebar"] {
-        background-color: #090B10 !important;
-        border-right: 1px solid #1E2532 !important;
-    }
     
-    /* 按钮样式：暗黑质感 + 悬浮霓虹发光 */
-    .stButton>button {
-        background-color: #1E2532 !important;
-        color: #A0AEC0 !important;
-        border: 1px solid #2D3748 !important;
-        border-radius: 12px !important;
-        transition: all 0.3s;
-    }
-    .stButton>button:hover {
-        border-color: #5D5FEF !important;
-        color: #5D5FEF !important;
-        box-shadow: 0 0 10px rgba(93, 95, 239, 0.3) !important;
-        transform: translateY(-2px);
+    .stApp {
+        background-color: #05070A !important;
+        background-image: radial-gradient(circle at 50% 0%, #1A1F2E 0%, #05070A 100%);
     }
 
-    /* 顶部标题渐变紫蓝 */
+    /* 2. 交互式顶部卡片 (取代侧边栏) */
+    .hero-container {
+        text-align: center;
+        padding: 2rem 0 3rem;
+    }
     .hero-title {
         font-weight: 900;
-        font-size: 2.8rem;
-        background: linear-gradient(135deg, #7F7FD5, #86A8E7, #91EAE4);
+        font-size: 3.5rem;
+        background: linear-gradient(135deg, #00F0FF, #5D5FEF, #FF00E5);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        text-align: center;
-        margin-top: -30px;
-        margin-bottom: 5px;
-        letter-spacing: 2px;
+        letter-spacing: -1px;
     }
-    .hero-subtitle {
-        text-align: center;
-        color: #4B5563 !important;
-        font-size: 0.9rem;
-        margin-bottom: 30px;
-        letter-spacing: 4px;
+
+    /* 3. 聊天气泡：赛博卡片化设计 */
+    [data-testid="stChatMessage"] {
+        padding: 1.5rem !important;
+        border-radius: 24px !important;
+        margin-bottom: 1.5rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    /* 展开组件 (参考文献) 深度暗黑化 */
-    .streamlit-expanderHeader {
-        background-color: #151B23 !important;
-        color: #A0AEC0 !important;
-        border-radius: 8px !important;
+    /* AI 气泡：带蓝色呼吸边框 */
+    [data-testid="stChatMessage"]:nth-child(even) {
+        background-color: #0D1117 !important;
+        border: 1px solid #1A202C !important;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6) !important;
+    }
+    [data-testid="stChatMessage"]:nth-child(even):hover {
+        border-color: #5D5FEF !important;
+        box-shadow: 0 0 20px rgba(93, 95, 239, 0.2) !important;
+    }
+
+    /* User 气泡：深空紫渐变 */
+    [data-testid="stChatMessage"]:nth-child(odd) {
+        background: linear-gradient(135deg, #1A1F2E, #11141D) !important;
         border: 1px solid #2D3748 !important;
     }
-    .streamlit-expanderContent {
-        background-color: #0B0E14 !important;
-        border: 1px solid #1E2532 !important;
-        border-top: none !important;
-        color: #718096 !important;
+
+    /* 4. 底部输入框：浮动胶囊 */
+    [data-testid="stChatInput"] {
+        background-color: #161B22 !important;
+        border: 1px solid #30363D !important;
+        border-radius: 40px !important;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.8) !important;
+    }
+    
+    /* 5. 交互组件定制 */
+    .stButton>button {
+        background: #161B22 !important;
+        color: #58A6FF !important;
+        border: 1px solid #30363D !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s;
+    }
+    .stButton>button:hover {
+        background: #1F2937 !important;
+        border-color: #58A6FF !important;
+        transform: scale(1.02);
+        box-shadow: 0 0 15px rgba(88, 166, 255, 0.3);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 配合暗黑风格的顶部炫酷标题
-st.markdown('<div class="hero-title">AI 专属教练</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-subtitle">NEON-SPORTS ENGINE V1.0</div>', unsafe_allow_html=True)
-
 # ==========================================
-# 2. 安全读取环境变量
+# 2. 核心后端逻辑 (保持原有高性能配置)
 # ==========================================
 if "PINECONE_API_KEY" in st.secrets:
     os.environ["PINECONE_API_KEY"] = st.secrets["PINECONE_API_KEY"]
 else:
-    st.error("🚨 致命错误：请在 Streamlit 后台 Secrets 中配置 PINECONE_API_KEY")
+    st.error("🚨 密钥缺失")
     st.stop()
 
-# ==========================================
-# 3. 核心架构：初始化全局单例资源池
-# ==========================================
 @st.cache_resource(show_spinner=False)
-def get_retriever():
+def get_resources():
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = PineconeVectorStore(index_name="sport", embedding=embeddings) 
-    return vectorstore.as_retriever(search_kwargs={"k": 10})
-
-retriever = get_retriever()
-
-# ==========================================
-# 4. 核心架构：大模型网关配置
-# ==========================================
-def get_llm():
-    return ChatOpenAI(
-        model="qwen/qwen-2.5-7b-instruct:free",  # 推荐使用稳定模型
+    llm = ChatOpenAI(
+        model="qwen/qwen-2.5-7b-instruct:free",
         api_key=st.secrets["OPENROUTER_API_KEY"], 
-        base_url="https://openrouter.ai/api/v1",  
-        default_headers={
-            "HTTP-Referer": "https://ai-sports-assistant.streamlit.app/", 
-            "X-Title": "AI Sports Assistant" 
-        },
-        temperature=0.7 
+        base_url="https://openrouter.ai/api/v1",
+        default_headers={"HTTP-Referer": "http://localhost", "X-Title": "SportsApp"}
     )
+    return vectorstore.as_retriever(search_kwargs={"k": 8}), llm
 
-llm = get_llm()
+retriever, llm = get_resources()
 
 # ==========================================
-# 5. 会话状态管理 (让 AI 拥有多轮记忆)
+# 3. 页面主体渲染
 # ==========================================
+st.markdown('<div class="hero-container"><h1 class="title">AI 专属教练</h1><p style="color:#6B7280; letter-spacing:3px;">NEON-CORE / HYBRID RAG ENGINE</p></div>', unsafe_allow_html=True)
+
+# 顶部交互式快捷场景 (取代侧边栏)
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button("🔥 制定全能体能方案"):
+        st.session_state.temp_query = "请根据专业文献，为我制定一份针对篮球运动员的周体能训练计划。"
+with col2:
+    if st.button("🏀 进阶投篮细节教学"):
+        st.session_state.temp_query = "详细解析库里投篮的发力链条，从脚踝到指尖的能量传递细节。"
+with col3:
+    if st.button("🔬 战术执行力分析"):
+        st.session_state.temp_query = "在职业比赛中，如何有效应对全场紧逼防守？请给出三种破防战术。"
+
+# 聊天记录渲染
 if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "系统已激活。我是你的 AI 体育教练，随时准备为您解析战术与训练动作。"}
-    ]
+    st.session_state.messages = [{"role": "assistant", "content": "核心引擎已就绪。我是你的 AI 体育专家，准备好突破极限了吗？"}]
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# ==========================================
-# 6. 侧边栏：暗黑操控台
-# ==========================================
-with st.sidebar:
-    st.markdown("### ⚡ 战术直达")
-    if st.button("⚽ 新手足球训练计划"):
-        st.session_state.quick_query = "请帮我制定一份为期一周的新手足球训练计划，重点在基础盘带和体能。"
-    if st.button("🏀 篮球三步上篮要点"):
-        st.session_state.quick_query = "请详细讲解篮球三步上篮的动作要领、发力技巧和新手易错点。"
-    
-    st.markdown("<br><hr style='border-color: #1E2532;'><br>", unsafe_allow_html=True)
-    
-    st.markdown("### 📡 引擎状态")
-    st.success("🟢 Pinecone 神经突触已连接")
-    st.success("🟢 LLM 逻辑核心已在线")
+# 接收输入
+prompt = st.chat_input("向教练下达指令...")
+if "temp_query" in st.session_state:
+    prompt = st.session_state.temp_query
+    del st.session_state.temp_query
 
-# ==========================================
-# 7. 主控中枢：接收输入并执行 RAG
-# ==========================================
-prompt_text = st.chat_input("向教练提问...")
-if "quick_query" in st.session_state:
-    prompt_text = st.session_state.quick_query
-    del st.session_state.quick_query 
+if prompt:
+    st.chat_message("user").markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
-if prompt_text:
-    # 7.1 显示用户提问
-    st.chat_message("user").markdown(prompt_text)
-    st.session_state.messages.append({"role": "user", "content": prompt_text})
-
-    # 7.2 AI 思考与回答
     with st.chat_message("assistant"):
-        with st.spinner("🌌 正在穿越向量星海检索底层文献..."):
+        with st.spinner("⚡ 正在穿梭向量维度..."):
             try:
-                # 检索
-                docs = retriever.invoke(prompt_text)
-                context_text = "\n\n".join([doc.page_content for doc in docs])
+                docs = retriever.invoke(prompt)
+                context = "\n\n".join([d.page_content for d in docs])
+                final_prompt = f"你是一位顶尖教练。请基于以下文献回答：\n{context}\n问题：{prompt}"
                 
-                # 组装强约束 Prompt (防止幻觉)
-                rag_prompt = f"""
-                你是本项目专属的「首席 AI 体育训练专家」。你拥有顶尖的体育运动理论基础。
-                
-                【你的核心工作原则】：
-                1. 优先查阅：请仔细阅读并优先依据 <参考文献> 中的内容来回答用户问题。
-                2. 专业兜底：如果用户的提问在 <参考文献> 中找不到直接答案，**允许你利用自身的专业体育常识进行解答**。
-                3. 诚实声明：当你没有使用 <参考文献>，而是依靠自身常识回答时，**必须在回答的最开头加上这句话**：“(注：当前私有知识库暂未收录该细节，以下基于通用专业体育知识为您解答)”。
-                
-                <参考文献>
-                {context_text}
-                </参考文献>
-                
-                <用户问题>
-                {prompt_text}
-                </用户问题>
-                
-                请现在开始专业解答：
-                """
-                
-                # 召唤大模型
-                response = llm.invoke(rag_prompt)
-                
-                # 展示答案
+                response = llm.invoke(final_prompt)
                 st.markdown(response.content)
                 st.session_state.messages.append({"role": "assistant", "content": response.content})
-
-           
-
+                
+                with st.expander("📚 查阅底层数据流"):
+                    for d in docs[:2]: st.caption(f"源片段: {d.page_content[:150]}...")
             except Exception as e:
-                st.error("网络网关波动或 API 频率限制，请稍后重试。")
-                st.warning(f"底层错误日志: {str(e)}")
+                st.error(f"接口波动: {str(e)}")
